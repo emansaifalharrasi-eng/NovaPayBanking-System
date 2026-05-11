@@ -6,7 +6,8 @@ namespace NovaPayBanking_System
 
     internal class Program
     {
-        static Bank bank = new Bank("banksystem");
+       
+   
         public static void DisplayMenu()
         {
             Console.WriteLine("========== NovaPay Banking System ==========");
@@ -26,6 +27,7 @@ namespace NovaPayBanking_System
         }
         static void Main(string[] args)
         {
+             Bank bank = new Bank("banksystem");
             bool exit = false;
 
             while (!exit)
@@ -56,7 +58,7 @@ namespace NovaPayBanking_System
                             SavingsAccount account = new SavingsAccount(ownerName, 0.03);
 
 
-                            bank.AddAccount(account);
+                            bank.OpenAccount(account); 
 
                             Console.WriteLine($"Savings Account created successfully. " +
                                 $"Account Number: {account.AccountNumber}");
@@ -76,8 +78,7 @@ namespace NovaPayBanking_System
                             CurrentAccount account = new CurrentAccount(ownerName, limit);
 
 
-                            bank.AddAccount(account);
-
+                            bank.OpenAccount(account);
                             Console.WriteLine($"Crurrent Account create succcessfully:"+$"Account Number:{ account.AccountNumber}");
                           
                            
@@ -95,12 +96,12 @@ namespace NovaPayBanking_System
                             Console.Write("Enter deposit amount: ");
                             double amount = Convert.ToDouble(Console.ReadLine());
 
-                            FixedDepositAccount account =
-                                new FixedDepositAccount(ownerName, amount);
+                            FixedDepositAccount account = new FixedDepositAccount(ownerName, amount);
+                         
 
-                            bank.AddAccount(account);
+                            bank.OpenAccount(account);
 
-                            Console.WriteLine($"Account Number: {account.AccountNumber}" + $"Fixed Deposit Account created successfully. ")
+                            Console.WriteLine($"Account Number: {account.AccountNumber}" + $"Fixed Deposit Account created successfully. ");
                             }
 
                             break;
@@ -113,8 +114,16 @@ namespace NovaPayBanking_System
 
                             Console.Write("Enter amount: ");
                             double amount = Convert.ToDouble(Console.ReadLine());
+                            BankAccount account = bank.FindAccount(accNumber);
 
-                            bank.Deposit(accNumber, amount);
+                            if (account != null)
+                            {
+                                bank.ProcessDeposit(account, amount);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Account not found.");
+                            }
                         }
 
                             break;
@@ -129,35 +138,54 @@ namespace NovaPayBanking_System
                             Console.Write("Enter amount: ");
                             double amount = Convert.ToDouble(Console.ReadLine());
 
-                            bank.Withdraw(accNumber, amount);
+                            BankAccount account = bank.FindAccount(accNumber);
 
+                            if (account != null)
+                            {
+                                bank.ProcessWithdrawa(account, amount);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Account not found.");
+                            }
                             break;
                         } 
 
                     case 6:
-                        {
-                            Console.Write("Enter account number: ");
-                            int accNumber = Convert.ToInt32(Console.ReadLine());
+                       
+                                {
+                                    Console.Write("Enter account number: ");
+                                    int accNumber = Convert.ToInt32(Console.ReadLine());
 
-                            bank.PrintStatement(accNumber);
+                                    bank.PrintAccountStatement(accNumber);
 
-                            break;
-                        }
+                                    break;
+                                }
+
+                              
 
                     case 7:
                         { 
 
                             Console.Write("Enter account number: ");
                             int accNumber = Convert.ToInt32(Console.ReadLine());
+                            BankAccount account = bank.FindAccount(accNumber);
 
-                            bank.ApplyInterest(accNumber);
+                            if (account is SavingsAccount savings)
+                            {
+                                savings.ApplyInterest();
+                            }
+                            else
+                            {
+                                Console.WriteLine("Savings account not found.");
+                            }
 
                             break;
                         }
                         
                     case 8:
                         { 
-                            bank.PrintSummary();
+                            bank.DisplaySummary();
                             break;
                         }
                        
@@ -214,19 +242,31 @@ abstract class BankAccount :
     protected double balance;
 
     protected List<Transaction> transactions;
+    
 
 
     public int AccountNumber { get; }
 
     public string OwnerName { get; }
     public string AccountType { get; protected set; }
+    public double Balance
+    {
+        get { return balance; }
+    }
+
+    public static int GetTotalTransactions()
+    {
+        return totalTransactionsProcessed;
+    }
     public BankAccount(string ownerName, double initialBalance) 
+
     {
         AccountNumber = nextAccountNumber++;
 
         OwnerName = ownerName;
 
         balance = initialBalance;
+        transactions = new List<Transaction>();
     }
 
     // IDepositable
@@ -292,23 +332,28 @@ class SavingsAccount : BankAccount
         else
         {
             Console.WriteLine("Withdrawal rejected: minimum balance must be 100");
-                 
+
         }
     }
 
     // Additional Method
 
     public void ApplyInterest()
-
     {
-        Deposit(double amount, string type)
-
         double interest = balance * interestRate;
 
-        Deposit(interest, "Interest Credit");
+        Deposit(interest);
+        Transaction transaction = new Transaction("Interest", interest);
 
+        transactions.Add(transaction);
+
+        totalTransactionsProcessed++;
+
+        Console.WriteLine("Interest applied successfully.");
     }
-}
+    }
+
+
 
 /// /////////class CurrentAccount////////
 
@@ -321,10 +366,9 @@ class CurrentAccount : BankAccount
         get { return overdraftLimit; }
     }
 
-    public CurrentAccount(string ownerName,Double overdraftLimit);
-
-     : base(ownerName)
-    
+    public CurrentAccount(string ownerName, double overdraftLimit)
+     : base(ownerName, 0)
+    {
         AccountType = "Current";
 
         if (overdraftLimit >= 0)
@@ -336,33 +380,33 @@ class CurrentAccount : BankAccount
             this.overdraftLimit = 0;
         }
     }
-
     public override void Withdraw(double amount)
     {
-    if
-    (
-        amount > 0 &&
-        (balance - amount) >= -overdraftLimit) ;
-        
+        if (amount > 0 &&
+            (balance - amount) >= -overdraftLimit)
         {
             balance -= amount;
 
-        Transaction transaction = new Transaction("Withdrawa", amount);
+            Transaction transaction = new Transaction("Withdraw", amount);
 
-               
 
             transactions.Add(transaction);
 
             totalTransactionsProcessed++;
-        
+
+            Console.WriteLine("Withdraw successful");
+        }
         else
         {
-        Console.WriteLine("Withdrawal exceeds overdraft limit");
+            Console.WriteLine("Withdrawal exceeds overdraft limit");
+        }
+    }
     public sealed override void PrintStatement()
-{
-    base.PrintStatement();
+    {
+        base.PrintStatement();
 
-    Console.WriteLine($"Overdraft Limit: {overdraftLimit}");
+        Console.WriteLine($"Overdraft Limit: {overdraftLimit}");
+    }
 }
 
 
@@ -372,11 +416,9 @@ class FixedDepositAccount : BankAccount
 {
     private double lockedAmount;
 
-    public FixedDepositAccount(string ownerName, double depositAmount);
-    (
-      
-    base.(ownerName)
-
+    public FixedDepositAccount(string ownerName, double depositAmount)
+     : base(ownerName, 0)
+    {
         AccountType = "Fixed Deposit";
 
         if (depositAmount > 0)
@@ -385,15 +427,18 @@ class FixedDepositAccount : BankAccount
 
             Deposit(depositAmount);
 
-    depositAmount,
-                "Initial Fixed Deposit"
-            
-        
+            Transaction transaction =
+                new Transaction("Initial Deposit", depositAmount);
+
+            transactions.Add(transaction);
+
+            totalTransactionsProcessed++;
+        }
         else
         {
             Console.WriteLine("Deposit amount must be greater than zero.");
-           
-
+        }
+    }
     public override void Withdraw(double amount)
     {
         Console.WriteLine($"Locked Amount: {lockedAmount}");
@@ -406,41 +451,9 @@ class FixedDepositAccount : BankAccount
 
         Console.WriteLine($"Locked Amount: {lockedAmount}");
     }
-
-
-    /// ///// class Transaction////////
-    class Transaction
-    {
-        private string type;
-
-        private double amount;
-
-        private DateTime date;
-
-        private string note;
-
-        public Transaction(string type, double amount, string note = "")
-        {
-            this.type = type;
-
-            this.amount = amount;
-
-            this.note = note;
-
-            date = DateTime.Now;
-        }
-
-        public void DisplayInfo()
-        {
-            Console.WriteLine($"{date.ToShortDateString()}" + $"{type}" + $"{amount:C}");
-
-            if (!string.IsNullOrEmpty(note))
-            {
-                Console.WriteLine($"Note: {note}");
-            }
-        }
-    }
 }
+
+
 
 /// //////class Bank////////////////////////////
 class Bank
@@ -462,29 +475,26 @@ class Bank
         accounts.Add(account);
 
         Console.WriteLine($"Account Number: {account.AccountNumber}" + $"Account created successfully.");
-        
+
     }
 
     public BankAccount FindAccount(int accountNumber)
     {
         return accounts.FirstOrDefault(a => a.AccountNumber == accountNumber);
     }
-    
 
-    public void ProcessDeposit
-    (
-        IDepositable account,
-        double amount
-    )
+
+    public void ProcessDeposit(IDepositable account, double amount)
+
     {
         account.Deposit(amount);
     }
 
     public void ProcessWithdrawa
-    (
-        IWithdrawable account,
-        double amount
-    )
+
+        (IWithdrawable account,
+        double amount)
+
     {
         account.Withdraw(amount);
     }
@@ -547,11 +557,50 @@ class Bank
         Console.WriteLine($"Total Balance: {totalBalance}");
 
         Console.WriteLine($"Total Transactions:" + $"{BankAccount.GetTotalTransactions()}");
-        
-            
-       
+
+
     }
 }
+        
+
+        /// ///// class Transaction////////
+        class Transaction
+        {
+            private string type;
+
+            private double amount;
+
+            private DateTime date;
+
+            private string note;
+
+            public Transaction(string type, double amount, string note = "")
+            {
+                this.type = type;
+
+                this.amount = amount;
+
+                this.note = note;
+
+                date = DateTime.Now;
+            }
+
+
+            public void DisplayInfo()
+            {
+                Console.WriteLine($"{date.ToShortDateString()}" + $"{type}" + $"{amount:C}");
+
+                if (!string.IsNullOrEmpty(note))
+                {
+                    Console.WriteLine($"Note: {note}");
+                }
+            }
+        }
+    
+
+
+
+
 
 
 
