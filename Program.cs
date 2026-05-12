@@ -272,10 +272,47 @@ abstract class BankAccount :
     // IDepositable
     public void Deposit(double amount)
     {
+        // Validation
+        if (amount <= 0)
+        {
+            Console.WriteLine("Amount must be greater than zero.");
+            return;
+        }
+
+        // Add amount to balance
         balance += amount;
 
-        Console.WriteLine("Deposit successful");
+        // Transaction Log
+        Transaction transaction = new Transaction("Deposit", amount);
+
+
+        transactions.Add(transaction);
+
+        // Increment Counter
+        totalTransactionsProcessed++;
+
+        Console.WriteLine("Deposit successful.");
     }
+    public void Deposit(double amount, string note)
+    {
+        if (amount <= 0)
+        {
+            Console.WriteLine("Amount must be greater than zero.");
+            return;
+        }
+
+        balance += amount;
+
+        Transaction transaction = new Transaction("Deposit", amount, note);
+
+
+        transactions.Add(transaction);
+
+        totalTransactionsProcessed++;
+
+        Console.WriteLine("Deposit successful.");
+    }
+
 
     // IWithdrawable
     public abstract void Withdraw(double amount);
@@ -284,9 +321,22 @@ abstract class BankAccount :
     public virtual void PrintStatement()
     {
         Console.WriteLine("====== Statement ======");
+
         Console.WriteLine($"Account Number: {AccountNumber}");
+
+        Console.WriteLine($"Account Type: {AccountType}");
+
         Console.WriteLine($"Owner: {OwnerName}");
+
         Console.WriteLine($"Balance: {balance}");
+
+        Console.WriteLine("----- Transactions -----");
+
+        foreach (Transaction t in transactions)
+        {
+            t.DisplayInfo();
+        }
+
     }
 }
 
@@ -335,6 +385,12 @@ class SavingsAccount : BankAccount
 
         }
     }
+    public override void PrintStatement()
+    {
+        base.PrintStatement();
+
+        Console.WriteLine($"Interest Rate: {interestRate}");
+    }
 
     // Additional Method
 
@@ -342,22 +398,15 @@ class SavingsAccount : BankAccount
     {
         double interest = balance * interestRate;
 
-        Deposit(interest);
-        Transaction transaction = new Transaction("Interest", interest);
-
-        transactions.Add(transaction);
-
-        totalTransactionsProcessed++;
+        Deposit(interest, "Interest Credit");
 
         Console.WriteLine("Interest applied successfully.");
     }
-    }
+}
 
+    /// /////////class CurrentAccount////////
 
-
-/// /////////class CurrentAccount////////
-
-class CurrentAccount : BankAccount
+    class CurrentAccount : BankAccount
 {
     private double overdraftLimit;
 
@@ -427,8 +476,8 @@ class FixedDepositAccount : BankAccount
 
             Deposit(depositAmount);
 
-            Transaction transaction =
-                new Transaction("Initial Deposit", depositAmount);
+            Transaction transaction = new Transaction("Initial Deposit", depositAmount);
+                
 
             transactions.Add(transaction);
 
